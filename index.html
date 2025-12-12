@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daylight Tactical Defense (Continuous Loop)</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #aaccff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #hud {
+            position: absolute; top: 0; left: 0; width: 100%; padding: 15px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
+            color: white; pointer-events: none;
+            text-shadow: 1px 1px 2px black;
+        }
+        h2 { margin: 0; text-align: center; font-size: 24px; text-transform: uppercase; letter-spacing: 2px; }
+        .status { font-size: 14px; text-align: center; font-weight: bold; margin-top: 5px; color: #ffeb3b; }
+        
+        .legend { 
+            position: absolute; bottom: 20px; left: 20px; 
+            background: rgba(255, 255, 255, 0.95); 
+            padding: 15px; 
+            border: 2px solid #333; 
+            border-radius: 8px; 
+            color: #333; 
+            font-weight: bold;
+            font-size: 13px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .legend div { margin-bottom: 5px; display: flex; align-items: center; }
+        .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 10px; border: 1px solid #000; }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="hud">
+        <h2>Operation: Peak Sentinel (Continuous)</h2>
+        <div class="status">LIVE FEED: CONTINUOUS ENGAGEMENT</div>
+    </div>
+    
+    <div class="legend">
+        <div><span class="dot" style="background:#0044ff"></span>Defenders (Blue Team)</div>
+        <div><span class="dot" style="background:#cc0000"></span>Hostiles (Red Team)</div>
+        <div><span class="dot" style="background:#555555"></span>Bunkers & Trenches</div>
+        <div><span class="dot" style="background:rgba(255,0,0,0.5); border:1px solid red"></span>Minefield</div>
+        <div><span class="dot" style="background:#ffaa00"></span>UAV / Drone</div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { ImprovedNoise } from 'three/addons/math/ImprovedNoise.js';
+
+        // --- SCENE ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xaaccff); 
+        scene.fog = new THREE.FogExp2(0xaaccff, 0.002);
+
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 1, 1000);
+        camera.position.set(0, 80, 140);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+        // --- LIGHTS ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); 
+        scene.add(ambientLight);
+
+        const sunLight = new THREE.DirectionalLight(0xffffee, 1.2);
+        sunLight.position.set(-80, 120, -50);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 2048;
+        sunLight.shadow.mapSize.height = 2048;
+        scene.add(sunLight);
+
+        // --- 1. TERRAIN ---
+        const worldSize = 280;
+        const geometry = new THREE.PlaneGeometry(worldSize, worldSize, 128, 128);
+        geometry.rotateX(-Math.PI / 2);
+        
+        const perlin = new ImprovedNoise();
+        const pos = geometry.attributes.position;
+        const PEAK_HEIGHT = 55;
+
+        for (let i = 0; i < pos.count; i++) {
+            const x = pos.getX(i);
+            const z = pos.getZ(i);
+            const dist = Math.sqrt(x*x + z*z);
+            let h = Math.max(0, PEAK_HEIGHT - dist * 0.6); 
+            if(dist > 10) h += perlin.noise(x*0.08, z*0.08, 0) * 4;
+            pos.setY(i, Math.max(0, h));
+        }
+        geometry.computeVertexNormals();
+        
+        const terrainMat = new THREE.MeshStandardMaterial({ color: 0x887766, roughness: 0.9, flatShading: true });
+        const mountain = new THREE.Mesh(geometry, terrainMat);
+        mountain.receiveShadow = true;
+        scene.add(mountain);
+
+        // Grid
+        const grid = new THREE.GridHelper(300, 30, 0xffffff, 0xffffff);
+        grid.position.y = 0.5;
+        grid.material.opacity = 0.15;
+        grid.material.transparent = true;
+        scene.add(grid);
+
+        // --- 2. DEFENSES ---
+        const bunkerGroup = new THREE.Group();
+        scene.add(bunkerGroup);
+        const bunkers = [];
+        
+        const raycaster = new THREE.Raycaster();
+        const downVector = new THREE.Vector3(0, -1, 0);
+        function getY(x, z) {
+            raycaster.set(new THREE.Vector3(x, 100, z), downVector);
+            const hits = raycaster.intersectObject(mountain);
+            return hits.length > 0 ? hits[0].point.y : 0;
+        }
+
+        const bunkerGeo = new THREE.BoxGeometry(5, 3, 5);
+        const bunkerMat = new THREE.MeshStandardMaterial({ color: 0x555555 });
+
+        const bunkerLocations = [{x:0, z:-12}, {x:0, z:12}, {x:-12, z:0}, {x:12, z:0}];
+
+        bunkerLocations.forEach(loc => {
+            const y = getY(loc.x, loc.z);
+            const b = new THREE.Mesh(bunkerGeo, bunkerMat);
+            b.position.set(loc.x, y + 1.5, loc.z);
+            b.castShadow = true;
+            bunkers.push(b);
+            bunkerGroup.add(b);
+
+            const port = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1, 1), new THREE.MeshBasicMaterial({color:0x000000}));
+            port.position.copy(b.position);
+            port.position.add(new THREE.Vector3(loc.x, 0, loc.z).normalize().multiplyScalar(2.1)); 
+            scene.add(port);
+
+            const defMarker = new THREE.Mesh(new THREE.SphereGeometry(1), new THREE.MeshBasicMaterial({color: 0x0044ff}));
+            defMarker.position.set(loc.x, y + 4, loc.z);
+            scene.add(defMarker);
+        });
+
+        const trenchGeo = new THREE.TorusGeometry(12, 0.8, 8, 32);
+        const trenchMat = new THREE.MeshStandardMaterial({ color: 0x332211 });
+        const trench = new THREE.Mesh(trenchGeo, trenchMat);
+        trench.rotation.x = Math.PI/2;
+        trench.position.y = getY(12, 0); 
+        scene.add(trench);
+
+        // --- 3. MINES ---
+        const mineGeo = new THREE.OctahedronGeometry(0.5);
+        const mineMat = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
+        
+        for(let i=0; i<40; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const r = 20 + Math.random() * 8; 
+            const x = Math.cos(angle) * r;
+            const z = Math.sin(angle) * r;
+            const y = getY(x, z);
+            const m = new THREE.Mesh(mineGeo, mineMat);
+            m.position.set(x, y + 0.5, z);
+            scene.add(m);
+        }
+
+        // --- 4. ENEMIES ---
+        const enemies = [];
+        const enemyGeo = new THREE.SphereGeometry(1.5); 
+        const enemyMat = new THREE.MeshStandardMaterial({ color: 0xdd0000 }); 
+
+        function spawnEnemy() {
+            if(enemies.length > 15) return; // Cap at 15
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 110; 
+            const x = Math.cos(angle) * dist;
+            const z = Math.sin(angle) * dist;
+            const e = new THREE.Mesh(enemyGeo, enemyMat);
+            e.position.set(x, 0, z);
+            e.castShadow = true;
+            scene.add(e);
+            enemies.push({ mesh: e, active: true });
+        }
+
+        // --- 5. DRONE ---
+        const drone = new THREE.Group();
+        const dBody = new THREE.Mesh(new THREE.BoxGeometry(4, 1, 2), new THREE.MeshStandardMaterial({color: 0xffaa00}));
+        drone.add(dBody);
+        scene.add(drone);
+
+        // --- FX ---
+        const fxList = []; 
+        function createBackBlast(pos, dir) {
+            const geo = new THREE.SphereGeometry(1.5, 6, 6);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 });
+            const puff = new THREE.Mesh(geo, mat);
+            const backPos = pos.clone().sub(dir.clone().normalize().multiplyScalar(4));
+            puff.position.copy(backPos);
+            scene.add(puff);
+            setTimeout(() => scene.remove(puff), 150);
+        }
+
+        function fire(start, end, color, isBunker) {
+            const points = [start, end];
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const material = new THREE.LineBasicMaterial({ color: color, linewidth: 2 });
+            const line = new THREE.Line(geometry, material);
+            scene.add(line);
+            fxList.push({ mesh: line, life: 8 }); 
+            if(isBunker) {
+                const dir = new THREE.Vector3().subVectors(end, start);
+                createBackBlast(start, dir);
+            }
+        }
+
+        // --- LOOP ---
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = clock.getElapsedTime();
+
+            // Drone
+            drone.position.set(Math.cos(time*0.4)*60, 90, Math.sin(time*0.4)*60);
+            drone.lookAt(0, 50, 0);
+
+            // Spawn Chance
+            if (Math.random() < 0.05) spawnEnemy();
+
+            // Enemy Logic
+            enemies.forEach(e => {
+                if (!e.active) return;
+                
+                // Climb
+                const dir = new THREE.Vector3(0, 0, 0).sub(e.mesh.position).normalize();
+                dir.y = 0; 
+                e.mesh.position.add(dir.multiplyScalar(0.25)); 
+                const y = getY(e.mesh.position.x, e.mesh.position.z);
+                e.mesh.position.y = y + 1.5;
+
+                // Reach Top -> Despawn
+                if (e.mesh.position.distanceTo(new THREE.Vector3(0, PEAK_HEIGHT, 0)) < 15) {
+                    e.active = false;
+                }
+            });
+
+            // Combat
+            if (enemies.length > 0) {
+                // Defender Fire (Bunkers)
+                if (Math.random() < 0.1) {
+                    const target = enemies.filter(en => en.active)[0];
+                    if (target) {
+                        const bunker = bunkers[Math.floor(Math.random() * 4)];
+                        fire(bunker.position, target.mesh.position, 0x0000ff, true);
+                        // FIXED: Defenders can now kill
+                        if(Math.random() > 0.7) target.active = false; 
+                    }
+                }
+                
+                // Enemy Fire
+                if (Math.random() < 0.1) {
+                    const shooter = enemies.filter(en => en.active)[Math.floor(Math.random() * enemies.length)];
+                    if (shooter) {
+                        const bunker = bunkers[Math.floor(Math.random() * 4)];
+                        fire(shooter.mesh.position, bunker.position, 0xff0000, false);
+                    }
+                }
+
+                // Drone Fire
+                if (Math.random() < 0.05) {
+                    const target = enemies.filter(en => en.active)[Math.floor(Math.random() * enemies.length)];
+                    if(target) {
+                         fire(drone.position, target.mesh.position, 0xffaa00, false);
+                         // Drone Kill
+                         if(Math.random() > 0.6) target.active = false;
+                    }
+                }
+            }
+
+            // --- GARBAGE COLLECTION (FIXED LOOP) ---
+            // Remove dead/inactive enemies so new ones can spawn
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                if (!enemies[i].active) {
+                    // Visual shrink effect before removal
+                    if (enemies[i].mesh.scale.x > 0.1) {
+                        enemies[i].mesh.scale.multiplyScalar(0.8);
+                    } else {
+                        scene.remove(enemies[i].mesh);
+                        enemies.splice(i, 1);
+                    }
+                }
+            }
+
+            // Cleanup FX
+            for (let i = fxList.length - 1; i >= 0; i--) {
+                fxList[i].life--;
+                if (fxList[i].life <= 0) { scene.remove(fxList[i].mesh); fxList.splice(i, 1); }
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
