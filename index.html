@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daylight Tactical Defense (Continuous Loop)</title>
+    <title>Daylight Tactical Defense (Small Blast)</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #aaccff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         #hud {
@@ -40,16 +40,16 @@
 </head>
 <body>
     <div id="hud">
-        <h2>Operation: Peak Sentinel (Continuous)</h2>
-        <div class="status">LIVE FEED: CONTINUOUS ENGAGEMENT</div>
+        <h2>Operation: Peak Sentinel (Precision Mines)</h2>
+        <div class="status">DEFENDERS: CONCEALED | HOSTILES: NUMEROUS | MINES: LOW YIELD</div>
     </div>
     
     <div class="legend">
-        <div><span class="dot" style="background:#0044ff"></span>Defenders (Blue Team)</div>
-        <div><span class="dot" style="background:#cc0000"></span>Hostiles (Red Team)</div>
-        <div><span class="dot" style="background:#555555"></span>Bunkers & Trenches</div>
-        <div><span class="dot" style="background:rgba(255,0,0,0.5); border:1px solid red"></span>Minefield</div>
-        <div><span class="dot" style="background:#ffaa00"></span>UAV / Drone</div>
+        <div><span class="dot" style="background:#555555"></span>Bunkers (Defenders Inside)</div>
+        <div><span class="dot" style="background:#cc0000"></span>Infantry (Hostile Horde)</div>
+        <div><span class="dot" style="background:#332211"></span>Trench Network</div>
+        <div><span class="dot" style="background:#222222; border: 1px solid red"></span>Landmine (Active)</div>
+        <div><span class="dot" style="background:#ffaa00"></span>UAV Drone</div>
     </div>
 
     <script type="module">
@@ -86,7 +86,7 @@
         sunLight.shadow.mapSize.height = 2048;
         scene.add(sunLight);
 
-        // --- 1. TERRAIN ---
+        // --- 1. TERRAIN (Mountain Peak) ---
         const worldSize = 280;
         const geometry = new THREE.PlaneGeometry(worldSize, worldSize, 128, 128);
         geometry.rotateX(-Math.PI / 2);
@@ -117,11 +117,7 @@
         grid.material.transparent = true;
         scene.add(grid);
 
-        // --- 2. DEFENSES ---
-        const bunkerGroup = new THREE.Group();
-        scene.add(bunkerGroup);
-        const bunkers = [];
-        
+        // --- UTILS ---
         const raycaster = new THREE.Raycaster();
         const downVector = new THREE.Vector3(0, -1, 0);
         function getY(x, z) {
@@ -130,85 +126,164 @@
             return hits.length > 0 ? hits[0].point.y : 0;
         }
 
+        // --- 2. DEFENSES (Bunkers & Ditches) ---
+        const bunkerGroup = new THREE.Group();
+        scene.add(bunkerGroup);
+        const bunkers = [];
         const bunkerGeo = new THREE.BoxGeometry(5, 3, 5);
-        const bunkerMat = new THREE.MeshStandardMaterial({ color: 0x555555 });
-
-        const bunkerLocations = [{x:0, z:-12}, {x:0, z:12}, {x:-12, z:0}, {x:12, z:0}];
+        const bunkerMat = new THREE.MeshStandardMaterial({ color: 0x444444 }); 
+        
+        const bunkerLocations = [
+            {x:0, z:-14, rot: 0},       
+            {x:0, z:14, rot: Math.PI},  
+            {x:-14, z:0, rot: -Math.PI/2}, 
+            {x:14, z:0, rot: Math.PI/2}    
+        ];
 
         bunkerLocations.forEach(loc => {
             const y = getY(loc.x, loc.z);
             const b = new THREE.Mesh(bunkerGeo, bunkerMat);
-            b.position.set(loc.x, y + 1.5, loc.z);
+            b.position.set(loc.x, y + 1.2, loc.z); 
+            b.rotation.y = loc.rot;
             b.castShadow = true;
-            bunkers.push(b);
+            
+            const portGeo = new THREE.BoxGeometry(1.5, 0.6, 1);
+            const portMat = new THREE.MeshBasicMaterial({color: 0x000000});
+            const port = new THREE.Mesh(portGeo, portMat);
+            port.position.set(0, 0.5, -2.1); 
+            b.add(port);
+            
+            bunkers.push({ mesh: b, port: port });
             bunkerGroup.add(b);
 
-            const port = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1, 1), new THREE.MeshBasicMaterial({color:0x000000}));
-            port.position.copy(b.position);
-            port.position.add(new THREE.Vector3(loc.x, 0, loc.z).normalize().multiplyScalar(2.1)); 
-            scene.add(port);
-
-            const defMarker = new THREE.Mesh(new THREE.SphereGeometry(1), new THREE.MeshBasicMaterial({color: 0x0044ff}));
-            defMarker.position.set(loc.x, y + 4, loc.z);
-            scene.add(defMarker);
+            const ditchGeo = new THREE.BoxGeometry(2, 1, 10);
+            const ditchMat = new THREE.MeshStandardMaterial({ color: 0x332211 });
+            const ditch = new THREE.Mesh(ditchGeo, ditchMat);
+            const midX = loc.x * 0.55;
+            const midZ = loc.z * 0.55;
+            const midY = getY(midX, midZ);
+            ditch.position.set(midX, midY, midZ);
+            ditch.lookAt(0, midY, 0);
+            scene.add(ditch);
         });
 
-        const trenchGeo = new THREE.TorusGeometry(12, 0.8, 8, 32);
+        const trenchGeo = new THREE.TorusGeometry(8, 0.8, 8, 32);
         const trenchMat = new THREE.MeshStandardMaterial({ color: 0x332211 });
         const trench = new THREE.Mesh(trenchGeo, trenchMat);
         trench.rotation.x = Math.PI/2;
-        trench.position.y = getY(12, 0); 
+        trench.position.y = getY(8, 0); 
         scene.add(trench);
 
         // --- 3. MINES ---
-        const mineGeo = new THREE.OctahedronGeometry(0.5);
-        const mineMat = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
-        
-        for(let i=0; i<40; i++) {
+        const mines = [];
+        const mineCaseMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+        const mineLightMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+
+        function createRealMine() {
+            const group = new THREE.Group();
+            const casing = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.8, 0.2, 12), mineCaseMat);
+            casing.castShadow = true;
+            group.add(casing);
+            const trigger = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.25, 8), mineLightMat);
+            group.add(trigger);
+            return group;
+        }
+
+        for(let i=0; i<45; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const r = 20 + Math.random() * 8; 
+            const r = 28 + Math.random() * 15; 
             const x = Math.cos(angle) * r;
             const z = Math.sin(angle) * r;
             const y = getY(x, z);
-            const m = new THREE.Mesh(mineGeo, mineMat);
-            m.position.set(x, y + 0.5, z);
+            
+            const m = createRealMine();
+            m.position.set(x, y + 0.1, z);
+            m.rotation.z = (Math.random() - 0.5) * 0.2;
+            m.rotation.x = (Math.random() - 0.5) * 0.2;
             scene.add(m);
+            mines.push({ mesh: m, active: true });
         }
 
         // --- 4. ENEMIES ---
         const enemies = [];
-        const enemyGeo = new THREE.SphereGeometry(1.5); 
-        const enemyMat = new THREE.MeshStandardMaterial({ color: 0xdd0000 }); 
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xcc0000 });
+        const skinMat = new THREE.MeshStandardMaterial({ color: 0xffccaa });
+        const gearMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+
+        function createSoldierMesh() {
+            const soldier = new THREE.Group();
+            const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 1.8, 8), bodyMat);
+            torso.position.y = 0.9;
+            torso.castShadow = true;
+            soldier.add(torso);
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 8), skinMat);
+            head.position.y = 2.1;
+            soldier.add(head);
+            const gun = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.3, 1.5), gearMat);
+            gun.position.set(0.4, 1.1, 0.6); 
+            soldier.add(gun);
+            return soldier;
+        }
 
         function spawnEnemy() {
-            if(enemies.length > 15) return; // Cap at 15
+            if(enemies.length > 60) return; 
             const angle = Math.random() * Math.PI * 2;
-            const dist = 110; 
+            const dist = 120; 
             const x = Math.cos(angle) * dist;
             const z = Math.sin(angle) * dist;
-            const e = new THREE.Mesh(enemyGeo, enemyMat);
-            e.position.set(x, 0, z);
-            e.castShadow = true;
-            scene.add(e);
-            enemies.push({ mesh: e, active: true });
+            
+            const soldier = createSoldierMesh();
+            soldier.position.set(x, 0, z);
+            
+            scene.add(soldier);
+            enemies.push({ mesh: soldier, active: true, offset: Math.random() * 100 });
         }
 
         // --- 5. DRONE ---
-        const drone = new THREE.Group();
-        const dBody = new THREE.Mesh(new THREE.BoxGeometry(4, 1, 2), new THREE.MeshStandardMaterial({color: 0xffaa00}));
-        drone.add(dBody);
-        scene.add(drone);
+        const droneGroup = new THREE.Group();
+        const rotors = []; 
 
-        // --- FX ---
+        function buildDrone() {
+            const yellowMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, roughness: 0.5, metalness: 0.4 });
+            const darkMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.5, 3), yellowMat);
+            droneGroup.add(body);
+
+            const armGeo = new THREE.CylinderGeometry(0.1, 0.1, 4.5);
+            armGeo.rotateZ(Math.PI/2);
+            const arm1 = new THREE.Mesh(armGeo, yellowMat); arm1.rotation.y = Math.PI/4;
+            const arm2 = new THREE.Mesh(armGeo, yellowMat); arm2.rotation.y = -Math.PI/4;
+            body.add(arm1); body.add(arm2);
+
+            const rotorGeo = new THREE.BoxGeometry(2.5, 0.05, 0.2);
+            const rotorMat = new THREE.MeshBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.8 });
+            
+            [{x: 1.5, z: 1.5}, {x: -1.5, z: 1.5}, {x: 1.5, z: -1.5}, {x: -1.5, z: -1.5}].forEach(pos => {
+                const motor = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.3), darkMat);
+                motor.position.set(pos.x, 0.3, pos.z);
+                body.add(motor);
+                const blade = new THREE.Mesh(rotorGeo, rotorMat);
+                blade.position.y = 0.2;
+                motor.add(blade);
+                rotors.push(blade); 
+            });
+            scene.add(droneGroup);
+        }
+        buildDrone();
+
+        // --- FX SYSTEMS ---
         const fxList = []; 
+        const explosions = []; 
+
         function createBackBlast(pos, dir) {
-            const geo = new THREE.SphereGeometry(1.5, 6, 6);
-            const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 });
+            const geo = new THREE.SphereGeometry(2, 6, 6);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xdddddd, transparent: true, opacity: 0.5 });
             const puff = new THREE.Mesh(geo, mat);
-            const backPos = pos.clone().sub(dir.clone().normalize().multiplyScalar(4));
+            const backPos = pos.clone().sub(dir.clone().normalize().multiplyScalar(5));
             puff.position.copy(backPos);
             scene.add(puff);
-            setTimeout(() => scene.remove(puff), 150);
+            const anim = { mesh: puff, life: 20 };
+            fxList.push(anim);
         }
 
         function fire(start, end, color, isBunker) {
@@ -217,11 +292,31 @@
             const material = new THREE.LineBasicMaterial({ color: color, linewidth: 2 });
             const line = new THREE.Line(geometry, material);
             scene.add(line);
-            fxList.push({ mesh: line, life: 8 }); 
+            
+            fxList.push({ mesh: line, life: 6, type: 'line' }); 
+            
             if(isBunker) {
                 const dir = new THREE.Vector3().subVectors(end, start);
                 createBackBlast(start, dir);
             }
+        }
+
+        function createExplosion(pos) {
+            // REDUCED BLAST RADIUS HERE
+            const geo = new THREE.SphereGeometry(1.2, 8, 8); // Reduced from 2.5
+            const mat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+            const boom = new THREE.Mesh(geo, mat);
+            boom.position.copy(pos);
+            scene.add(boom);
+            explosions.push({ mesh: boom, age: 0, type: 'fire' });
+
+            const smokeGeo = new THREE.TorusGeometry(0.8, 0.4, 6, 12); // Reduced from 1.5
+            const smokeMat = new THREE.MeshBasicMaterial({ color: 0x555555, transparent: true, opacity: 0.8 });
+            const smoke = new THREE.Mesh(smokeGeo, smokeMat);
+            smoke.position.copy(pos);
+            smoke.rotation.x = Math.PI/2;
+            scene.add(smoke);
+            explosions.push({ mesh: smoke, age: 0, type: 'smoke' });
         }
 
         // --- LOOP ---
@@ -230,70 +325,92 @@
             requestAnimationFrame(animate);
             const time = clock.getElapsedTime();
 
-            // Drone
-            drone.position.set(Math.cos(time*0.4)*60, 90, Math.sin(time*0.4)*60);
-            drone.lookAt(0, 50, 0);
+            // 1. Drone Logic 
+            droneGroup.position.set(Math.cos(time*0.4)*60, 70, Math.sin(time*0.4)*60);
+            droneGroup.lookAt(0, 40, 0);
+            rotors.forEach((r, i) => { r.rotation.y += 0.8 * (i%2==0 ? 1 : -1); });
 
-            // Spawn Chance
-            if (Math.random() < 0.05) spawnEnemy();
+            // 2. Spawn Enemies
+            if (Math.random() < 0.15) spawnEnemy();
 
-            // Enemy Logic
+            // 3. Enemy Logic
             enemies.forEach(e => {
                 if (!e.active) return;
                 
-                // Climb
                 const dir = new THREE.Vector3(0, 0, 0).sub(e.mesh.position).normalize();
                 dir.y = 0; 
-                e.mesh.position.add(dir.multiplyScalar(0.25)); 
+                e.mesh.position.add(dir.multiplyScalar(0.2)); 
+                
+                const bob = Math.sin((time * 10) + e.offset) * 0.2;
                 const y = getY(e.mesh.position.x, e.mesh.position.z);
-                e.mesh.position.y = y + 1.5;
+                e.mesh.position.y = y + 0.1 + Math.max(0, bob); 
+                e.mesh.lookAt(0, y + 10, 0);
 
-                // Reach Top -> Despawn
+                // Mine Collision
+                mines.forEach(mine => {
+                    if(!mine.active) return;
+                    // REDUCED TRIGGER RADIUS (from 3.5 to 2.5)
+                    if(e.mesh.position.distanceTo(mine.mesh.position) < 2.5) { 
+                        createExplosion(mine.mesh.position);
+                        mine.active = false;
+                        scene.remove(mine.mesh);
+                        e.active = false;
+                    }
+                });
+
                 if (e.mesh.position.distanceTo(new THREE.Vector3(0, PEAK_HEIGHT, 0)) < 15) {
-                    e.active = false;
+                    e.active = false; 
                 }
             });
 
-            // Combat
+            // 4. Combat Logic
             if (enemies.length > 0) {
-                // Defender Fire (Bunkers)
-                if (Math.random() < 0.1) {
+                if (Math.random() < 0.25) {
                     const target = enemies.filter(en => en.active)[0];
                     if (target) {
-                        const bunker = bunkers[Math.floor(Math.random() * 4)];
-                        fire(bunker.position, target.mesh.position, 0x0000ff, true);
-                        // FIXED: Defenders can now kill
-                        if(Math.random() > 0.7) target.active = false; 
+                        const bunkerObj = bunkers[Math.floor(Math.random() * bunkers.length)];
+                        const startPos = new THREE.Vector3();
+                        bunkerObj.port.getWorldPosition(startPos);
+                        
+                        const targetPos = target.mesh.position.clone().add(new THREE.Vector3(0, 1.5, 0));
+                        fire(startPos, targetPos, 0x00aaff, true); 
+                        
+                        if(Math.random() > 0.6) target.active = false; 
                     }
                 }
-                
-                // Enemy Fire
-                if (Math.random() < 0.1) {
-                    const shooter = enemies.filter(en => en.active)[Math.floor(Math.random() * enemies.length)];
+                if (Math.random() < 0.15) {
+                    const activeEnemies = enemies.filter(en => en.active);
+                    const shooter = activeEnemies[Math.floor(Math.random() * activeEnemies.length)];
                     if (shooter) {
-                        const bunker = bunkers[Math.floor(Math.random() * 4)];
-                        fire(shooter.mesh.position, bunker.position, 0xff0000, false);
+                        const bunkerObj = bunkers[Math.floor(Math.random() * bunkers.length)];
+                        const startPos = shooter.mesh.position.clone().add(new THREE.Vector3(0, 1.2, 0));
+                        fire(startPos, bunkerObj.mesh.position, 0xff0000, false); 
                     }
                 }
-
-                // Drone Fire
-                if (Math.random() < 0.05) {
+                if (Math.random() < 0.1) {
                     const target = enemies.filter(en => en.active)[Math.floor(Math.random() * enemies.length)];
                     if(target) {
-                         fire(drone.position, target.mesh.position, 0xffaa00, false);
-                         // Drone Kill
-                         if(Math.random() > 0.6) target.active = false;
+                         const targetPos = target.mesh.position.clone().add(new THREE.Vector3(0, 1.5, 0));
+                         fire(droneGroup.position, targetPos, 0xffaa00, false);
+                         if(Math.random() > 0.8) target.active = false;
                     }
                 }
             }
 
-            // --- GARBAGE COLLECTION (FIXED LOOP) ---
-            // Remove dead/inactive enemies so new ones can spawn
+            // 5. Visual Cleanup
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                const ex = explosions[i];
+                ex.age++;
+                if(ex.type === 'fire') { ex.mesh.scale.multiplyScalar(1.08); ex.mesh.material.opacity -= 0.05; }
+                else if (ex.type === 'smoke') { ex.mesh.scale.multiplyScalar(1.05); ex.mesh.position.y += 0.2; ex.mesh.material.opacity -= 0.02; }
+                if (ex.mesh.material.opacity <= 0) { scene.remove(ex.mesh); explosions.splice(i, 1); }
+            }
+
             for (let i = enemies.length - 1; i >= 0; i--) {
                 if (!enemies[i].active) {
-                    // Visual shrink effect before removal
                     if (enemies[i].mesh.scale.x > 0.1) {
                         enemies[i].mesh.scale.multiplyScalar(0.8);
+                        enemies[i].mesh.rotation.x += 0.2; 
                     } else {
                         scene.remove(enemies[i].mesh);
                         enemies.splice(i, 1);
@@ -301,10 +418,14 @@
                 }
             }
 
-            // Cleanup FX
             for (let i = fxList.length - 1; i >= 0; i--) {
-                fxList[i].life--;
-                if (fxList[i].life <= 0) { scene.remove(fxList[i].mesh); fxList.splice(i, 1); }
+                const fx = fxList[i];
+                fx.life--;
+                if(fx.type !== 'line') { 
+                     fx.mesh.scale.multiplyScalar(1.1);
+                     fx.mesh.material.opacity -= 0.05;
+                }
+                if (fx.life <= 0 || fx.mesh.material.opacity <= 0) { scene.remove(fx.mesh); fxList.splice(i, 1); }
             }
 
             controls.update();
