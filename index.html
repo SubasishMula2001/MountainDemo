@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tactical Defense: Point 4875 (Indian Army Demo)</title>
+    <title>Tactical Defense: Point 4875</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #aaccff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; transition: background-color 1s ease; }
         
@@ -52,9 +52,27 @@
         }
         .toggle-btn:hover { color: white; }
 
-        /* Movable Control Panel */
+        .help-icon {
+            cursor: pointer;
+            color: #ffffaa;
+            font-weight: bold;
+            margin-right: 5px;
+            border: 1px solid #888800;
+            background: #444400;
+            border-radius: 50%;
+            font-size: 11px;
+            width: 18px;
+            height: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto; /* Ensure clickable */
+        }
+        .help-icon:hover { background: #666600; color: white; border-color: #aaaa00; }
+
+        /* Movable Control Panel - BOTTOM CENTER */
         #controls-panel {
-            top: 80px; left: calc(50% - 300px); /* Centerish start */
+            bottom: 20px; left: calc(50% - 310px); /* Center (Width 620/2 = 310) */
             width: 620px;
         }
         #controls-content {
@@ -85,10 +103,7 @@
         button.reset-btn { background: #444; border-color: #888; }
         button.reset-btn:hover { background: #666; }
 
-        button.help-btn { background: #444400; border-color: #888800; color: #ffffaa; font-weight: 900; }
-        button.help-btn:hover { background: #666600; }
-
-        /* Movable Legend */
+        /* Movable Legend - BOTTOM LEFT */
         #legend-panel { 
             bottom: 20px; left: 20px; 
             background: rgba(240, 240, 230, 0.95); 
@@ -106,18 +121,18 @@
         #legend-content div { margin-bottom: 5px; display: flex; align-items: center; }
         .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 10px; border: 1px solid #000; }
         
-        /* Movable Toggles */
+        /* Movable Toggles - ABOVE LEGEND (LEFT) */
         #options-panel {
-            top: 150px; left: 20px;
+            bottom: 240px; left: 20px;
             border-left: 3px solid #ff9933;
             width: 150px;
         }
         #options-content { padding: 10px; }
         #options-panel label { display: block; margin-bottom: 5px; cursor: pointer; font-size: 13px; }
 
-        /* --- TACTICAL LOG (RIGHT SIDE) --- */
+        /* --- TACTICAL LOG - BOTTOM RIGHT --- */
         #tactical-log {
-            top: 150px;
+            bottom: 20px;
             right: 20px;
             width: 280px;
             height: 400px; /* Default height */
@@ -221,7 +236,10 @@
     <div id="controls-panel" class="draggable-panel">
         <div class="drag-handle">
             Instructor Controls 
-            <span class="toggle-btn" onclick="togglePanel('controls-content', this)">[-]</span>
+            <div style="display:flex; align-items:center;">
+                <span class="help-icon" onclick="toggleHelp()" title="Tactical Guide">?</span>
+                <span class="toggle-btn" onclick="togglePanel('controls-content', this)">[-]</span>
+            </div>
         </div>
         <div id="controls-content">
             <button onclick="setCam('ISO')" class="active" id="btn-iso">Sand Model</button>
@@ -231,7 +249,7 @@
             <button onclick="callArtillery()" class="artillery-btn">ARTILLERY</button>
             <button onclick="toggleNight()" class="night-btn" id="btn-night">NIGHT OP</button>
             <div style="width:5px;"></div>
-            <button onclick="toggleHelp()" class="help-btn" title="Tactical Guide">?</button>
+            <!-- Help button moved to header -->
             <button onclick="togglePause()" class="action-btn" id="btn-pause">PAUSE</button>
             <button onclick="resetSimulation()" class="reset-btn">RESET</button>
         </div>
@@ -419,7 +437,7 @@
 
             function dragMouseDown(e) {
                 e = e || window.event;
-                if(e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.classList.contains('toggle-btn') || e.target.classList.contains('close-help')) return;
+                if(e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.classList.contains('toggle-btn') || e.target.classList.contains('close-help') || e.target.classList.contains('help-icon')) return;
                 
                 e.preventDefault();
                 pos3 = e.clientX;
@@ -489,7 +507,8 @@
         const views = {
             ISO: { pos: new THREE.Vector3(0, 90, 150), look: new THREE.Vector3(0, 0, 0) },
             TOP: { pos: new THREE.Vector3(0, 220, 0), look: new THREE.Vector3(0, 0, 0) },
-            BUNKER: { pos: new THREE.Vector3(0, 15, 15), look: new THREE.Vector3(0, 10, 60) }, 
+            // UPDATED BUNKER VIEW: Position raised to avoid being underground
+            BUNKER: { pos: new THREE.Vector3(0, 62, 10), look: new THREE.Vector3(0, 40, 100) }, 
             ENEMY: { pos: new THREE.Vector3(0, 10, 100), look: new THREE.Vector3(0, 20, 0) }
         };
 
