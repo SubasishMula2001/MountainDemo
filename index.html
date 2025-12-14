@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tactical Defense: Point 4875</title>
+    <title>Tactical Defense: Forward Post Alpha</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #aaccff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; transition: background-color 1s ease; }
         
@@ -20,17 +20,17 @@
             overflow: hidden; /* Hide content when minimized */
         }
         
-        #hud {
-            position: absolute; top: 0; left: 0; width: 100%; padding: 15px;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
-            color: white; pointer-events: none;
-            text-shadow: 1px 1px 2px black;
-            display: flex; flex-direction: column; align-items: center;
-            z-index: 10;
+        /* New Movable HUD Panel CSS - UPDATED POSITION */
+        #hud-panel {
+            top: 20px; left: 20px; /* Top Left Corner */
+            width: 450px; /* Slightly narrower to fit corner better */
+            text-align: center;
         }
-        h2 { margin: 0; font-size: 22px; text-transform: uppercase; letter-spacing: 2px; color: #ff9933; /* Saffron hint */ }
-        .sub-header { font-size: 14px; color: #138808; font-weight: bold; margin-bottom: 5px; /* Green hint */ }
-        .status { font-size: 13px; color: #ffeb3b; }
+        #hud-content { padding: 15px; }
+
+        h2 { margin: 0; font-size: 20px; text-transform: uppercase; letter-spacing: 2px; color: #ff9933; /* Saffron hint */ }
+        .sub-header { font-size: 13px; color: #138808; font-weight: bold; margin-bottom: 5px; /* Green hint */ }
+        .status { font-size: 12px; color: #ffeb3b; }
         
         /* Draggable Header Styling */
         .drag-handle {
@@ -226,10 +226,18 @@
     </script>
 </head>
 <body>
-    <div id="hud">
-        <h2>DEFENSE OF POINT 4875</h2>
-        <div class="sub-header">SAND MODEL EXERCISE: HIGH ALTITUDE DEFENSE</div>
-        <div class="status">SITREP: OWN TROOPS ALERT | ENEMY DETECTED | UAV ON STATION</div>
+    <!-- New Draggable HUD Panel -->
+    <div id="hud-panel" class="draggable-panel">
+        <div class="drag-handle">
+            Mission Status
+            <span class="toggle-btn" onclick="togglePanel('hud-content', this)">[+]</span>
+        </div>
+        <!-- Set display to none for minimized default state -->
+        <div id="hud-content" style="display: none;">
+            <h2>TACTICAL DEFENSE: FORWARD POST ALPHA</h2>
+            <div class="sub-header">MODERN WARFARE SIMULATION: INTEGRATED DEFENSE GRID</div>
+            <div class="status">SITREP: OWN TROOPS ALERT | ENEMY DETECTED | UAV ON STATION</div>
+        </div>
     </div>
     
     <!-- Movable Controls Panel -->
@@ -249,7 +257,6 @@
             <button onclick="callArtillery()" class="artillery-btn">ARTILLERY</button>
             <button onclick="toggleNight()" class="night-btn" id="btn-night">NIGHT OP</button>
             <div style="width:5px;"></div>
-            <!-- Help button moved to header -->
             <button onclick="togglePause()" class="action-btn" id="btn-pause">PAUSE</button>
             <button onclick="resetSimulation()" class="reset-btn">RESET</button>
         </div>
@@ -312,7 +319,7 @@
                 <div class="modal-section">
                     <h4>Operational Context</h4>
                     <p style="font-size:13px; line-height:1.5; color:#ccc;">
-                        This sand model simulates the defense of <strong>Point 4875</strong>, a critical peak in the Kargil sector. The objective is to hold the high ground against waves of enemy infantry ascending the slopes. The simulation demonstrates the effectiveness of integrated defenses (mines, wire, bunkers) and support assets (UAV, Artillery).
+                        This sand model simulates the defense of <strong>Forward Post Alpha</strong> (Elevation: 16,000ft), a critical peak in the high-altitude sector. The objective is to hold the high ground against waves of enemy infantry ascending the slopes. The simulation demonstrates the effectiveness of integrated defenses (mines, wire, bunkers) and support assets (UAV, Artillery) in a modern hybrid warfare scenario.
                     </p>
                 </div>
 
@@ -470,6 +477,8 @@
         makeDraggable(document.getElementById("options-panel"));
         makeDraggable(document.getElementById("tactical-log"));
         makeDraggable(document.getElementById("controls-panel"));
+        // New: Make HUD movable
+        makeDraggable(document.getElementById("hud-panel"));
 
 
         // --- LOGGING SYSTEM ---
@@ -505,7 +514,7 @@
         
         // Initial View (ISO)
         const views = {
-            ISO: { pos: new THREE.Vector3(0, 90, 150), look: new THREE.Vector3(0, 0, 0) },
+            ISO: { pos: new THREE.Vector3(0, 120, 200), look: new THREE.Vector3(0, 0, 0) }, // Adjusted for zoom out
             TOP: { pos: new THREE.Vector3(0, 220, 0), look: new THREE.Vector3(0, 0, 0) },
             // UPDATED BUNKER VIEW: Position raised to avoid being underground
             BUNKER: { pos: new THREE.Vector3(0, 62, 10), look: new THREE.Vector3(0, 40, 100) }, 
