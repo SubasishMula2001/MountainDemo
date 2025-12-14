@@ -3,53 +3,349 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daylight Tactical Defense (Small Blast)</title>
+    <title>Tactical Defense: Point 4875 (Indian Army Demo)</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #aaccff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; overflow: hidden; background-color: #aaccff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; transition: background-color 1s ease; }
+        
+        /* Utility for draggable items */
+        .draggable-panel {
+            position: absolute;
+            z-index: 100; /* High z-index to stay on top */
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            background: rgba(0, 0, 0, 0.7); /* Unified dark background for panels */
+            border-radius: 6px;
+            border: 1px solid #555;
+            color: white;
+            transition: height 0.2s ease; /* Smooth height change */
+            overflow: hidden; /* Hide content when minimized */
+        }
+        
         #hud {
             position: absolute; top: 0; left: 0; width: 100%; padding: 15px;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
             color: white; pointer-events: none;
             text-shadow: 1px 1px 2px black;
+            display: flex; flex-direction: column; align-items: center;
+            z-index: 10;
         }
-        h2 { margin: 0; text-align: center; font-size: 24px; text-transform: uppercase; letter-spacing: 2px; }
-        .status { font-size: 14px; text-align: center; font-weight: bold; margin-top: 5px; color: #ffeb3b; }
+        h2 { margin: 0; font-size: 22px; text-transform: uppercase; letter-spacing: 2px; color: #ff9933; /* Saffron hint */ }
+        .sub-header { font-size: 14px; color: #138808; font-weight: bold; margin-bottom: 5px; /* Green hint */ }
+        .status { font-size: 13px; color: #ffeb3b; }
         
-        .legend { 
-            position: absolute; bottom: 20px; left: 20px; 
-            background: rgba(255, 255, 255, 0.95); 
-            padding: 15px; 
-            border: 2px solid #333; 
-            border-radius: 8px; 
-            color: #333; 
+        /* Draggable Header Styling */
+        .drag-handle {
+            font-size: 11px; color: #ddd; text-transform: uppercase; margin-bottom: 0; 
+            border-bottom: 1px solid #555; padding: 5px 8px;
+            cursor: move;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255,255,255,0.1);
             font-weight: bold;
-            font-size: 13px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
-        .legend div { margin-bottom: 5px; display: flex; align-items: center; }
+        .toggle-btn {
+            cursor: pointer;
+            color: #ff9933;
+            font-weight: bold;
+            padding: 0 4px;
+            margin-left: 10px;
+        }
+        .toggle-btn:hover { color: white; }
+
+        /* Movable Control Panel */
+        #controls-panel {
+            top: 80px; left: calc(50% - 300px); /* Centerish start */
+            width: 620px;
+        }
+        #controls-content {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            padding: 8px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: #333; color: white; border: 1px solid #777; padding: 6px 12px;
+            cursor: pointer; font-size: 11px; text-transform: uppercase; font-weight: bold;
+            transition: all 0.2s;
+        }
+        button:hover { background: #555; }
+        button.active { background: #d46a00; border-color: #ff9933; color: white; }
+        
+        button.action-btn { background: #004400; border-color: #008800; }
+        button.action-btn:hover { background: #006600; }
+        
+        button.artillery-btn { background: #550000; border-color: #aa0000; color: #ffaaaa; }
+        button.artillery-btn:hover { background: #880000; box-shadow: 0 0 10px red; }
+
+        button.night-btn { background: #000044; border-color: #4444ff; color: #aaaaff; }
+        button.night-btn:hover { background: #000077; }
+
+        button.reset-btn { background: #444; border-color: #888; }
+        button.reset-btn:hover { background: #666; }
+
+        button.help-btn { background: #444400; border-color: #888800; color: #ffffaa; font-weight: 900; }
+        button.help-btn:hover { background: #666600; }
+
+        /* Movable Legend */
+        #legend-panel { 
+            bottom: 20px; left: 20px; 
+            background: rgba(240, 240, 230, 0.95); 
+            border: 2px solid #554433; 
+            color: #221100; font-weight: bold; font-size: 12px;
+            text-align: left;
+            width: 200px;
+        }
+        #legend-panel .drag-handle {
+            background: #e6e6da; /* Light header for legend */
+            color: #333;
+            border-bottom: 1px solid #999;
+        }
+        #legend-content { padding: 10px; }
+        #legend-content div { margin-bottom: 5px; display: flex; align-items: center; }
         .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 10px; border: 1px solid #000; }
+        
+        /* Movable Toggles */
+        #options-panel {
+            top: 150px; left: 20px;
+            border-left: 3px solid #ff9933;
+            width: 150px;
+        }
+        #options-content { padding: 10px; }
+        #options-panel label { display: block; margin-bottom: 5px; cursor: pointer; font-size: 13px; }
+
+        /* --- TACTICAL LOG (RIGHT SIDE) --- */
+        #tactical-log {
+            top: 150px;
+            right: 20px;
+            width: 280px;
+            height: 400px; /* Default height */
+            background: rgba(10, 20, 10, 0.85);
+            border-top: 3px solid #138808;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            pointer-events: auto; 
+        }
+        #log-header {
+            /* Now handled by generic .drag-handle but kept ID for JS reference if needed */
+            background: rgba(0, 50, 0, 0.8);
+            border-bottom: 1px solid #444;
+            color: white;
+        }
+        #log-feed {
+            flex: 1;
+            overflow: hidden;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end; /* New items at bottom */
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        .log-entry {
+            margin-bottom: 4px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
+        
+        /* Log Colors */
+        .msg-kill { color: #00ff00; }
+        .msg-mine { color: #ff3333; font-weight: bold; }
+        .msg-eng { color: #ffcc00; }
+        .msg-artillery { color: #ff5500; font-weight: bold; font-size: 1.1em; text-transform: uppercase; }
+        .msg-alert { color: #ffffff; background: rgba(255,0,0,0.3); padding: 0 2px; }
+        .msg-sys { color: #88ccff; font-style: italic; }
+
+        /* --- HELP MODAL --- */
+        #help-modal {
+            display: none; position: fixed; z-index: 200; left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+            align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background-color: rgba(20, 25, 20, 0.98); 
+            border: 2px solid #138808;
+            width: 650px; 
+            max-width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            color: #eee; 
+            font-family: 'Segoe UI', sans-serif; 
+            border-radius: 8px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.9);
+            padding: 0;
+            display: flex; flex-direction: column;
+        }
+        .modal-header { 
+            background: rgba(19, 136, 8, 0.2);
+            padding: 15px 20px;
+            font-size: 20px; 
+            color: #ff9933; 
+            border-bottom: 1px solid #444; 
+            font-weight: bold; 
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-body { padding: 20px; }
+        .modal-section { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #333; }
+        .modal-section:last-child { border-bottom: none; }
+        .modal-section h4 { color: #88ccff; margin: 0 0 10px 0; text-transform: uppercase; font-size: 14px; letter-spacing: 1px; border-left: 3px solid #ff9933; padding-left: 8px; }
+        
+        .guide-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .key-item { font-size: 13px; line-height: 1.5; background: rgba(255,255,255,0.03); padding: 8px; border-radius: 4px;}
+        .key-name { font-weight: bold; color: #ffeb3b; display: block; margin-bottom: 2px; text-transform: uppercase; font-size: 11px; }
+        
+        .close-help { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; line-height: 1; }
+        .close-help:hover { color: white; }
+
     </style>
     <script type="importmap">
         {
             "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
             }
         }
     </script>
 </head>
 <body>
     <div id="hud">
-        <h2>Operation: Peak Sentinel (Precision Mines)</h2>
-        <div class="status">DEFENDERS: CONCEALED | HOSTILES: NUMEROUS | MINES: LOW YIELD</div>
+        <h2>DEFENSE OF POINT 4875</h2>
+        <div class="sub-header">SAND MODEL EXERCISE: HIGH ALTITUDE DEFENSE</div>
+        <div class="status">SITREP: OWN TROOPS ALERT | ENEMY DETECTED | UAV ON STATION</div>
     </div>
     
-    <div class="legend">
-        <div><span class="dot" style="background:#555555"></span>Bunkers (Defenders Inside)</div>
-        <div><span class="dot" style="background:#cc0000"></span>Infantry (Hostile Horde)</div>
-        <div><span class="dot" style="background:#332211"></span>Trench Network</div>
-        <div><span class="dot" style="background:#222222; border: 1px solid red"></span>Landmine (Active)</div>
-        <div><span class="dot" style="background:#ffaa00"></span>UAV Drone</div>
+    <!-- Movable Controls Panel -->
+    <div id="controls-panel" class="draggable-panel">
+        <div class="drag-handle">
+            Instructor Controls 
+            <span class="toggle-btn" onclick="togglePanel('controls-content', this)">[-]</span>
+        </div>
+        <div id="controls-content">
+            <button onclick="setCam('ISO')" class="active" id="btn-iso">Sand Model</button>
+            <button onclick="setCam('TOP')" id="btn-top">Map View</button>
+            <button onclick="setCam('BUNKER')" id="btn-bunk">Bunker</button>
+            <div style="width:5px;"></div>
+            <button onclick="callArtillery()" class="artillery-btn">ARTILLERY</button>
+            <button onclick="toggleNight()" class="night-btn" id="btn-night">NIGHT OP</button>
+            <div style="width:5px;"></div>
+            <button onclick="toggleHelp()" class="help-btn" title="Tactical Guide">?</button>
+            <button onclick="togglePause()" class="action-btn" id="btn-pause">PAUSE</button>
+            <button onclick="resetSimulation()" class="reset-btn">RESET</button>
+        </div>
+    </div>
+    
+    <!-- Movable Settings -->
+    <div id="options-panel" class="draggable-panel">
+        <div class="drag-handle">
+            View Options 
+            <span class="toggle-btn" onclick="togglePanel('options-content', this)">[-]</span>
+        </div>
+        <div id="options-content">
+            <label><input type="checkbox" id="toggle-arcs"> Firing Zones</label>
+            <label><input type="checkbox" id="toggle-wire" checked> Barbed Wire</label>
+            <label><input type="checkbox" id="toggle-rings" checked> Range Rings</label>
+        </div>
+    </div>
+
+    <!-- Movable Log -->
+    <div id="tactical-log" class="draggable-panel">
+        <div id="log-header" class="drag-handle">
+            <span>COMBAT LOG</span>
+            <div style="display:flex; align-items:center;">
+                <span style="color:#0f0; font-size:10px; margin-right:5px;">LIVE ●</span>
+                <span class="toggle-btn" onclick="togglePanel('log-feed', this)">[-]</span>
+            </div>
+        </div>
+        <div id="log-feed">
+            <div class="log-entry msg-sys">System initialized...</div>
+            <div class="log-entry msg-sys">Sensor Grid Active.</div>
+            <div class="log-entry msg-sys">Awaiting Contact...</div>
+        </div>
+    </div>
+
+    <!-- Movable Legend -->
+    <div id="legend-panel" class="draggable-panel">
+        <div class="drag-handle">
+            Map Legend
+            <span class="toggle-btn" onclick="togglePanel('legend-content', this)">[-]</span>
+        </div>
+        <div id="legend-content">
+            <div><span class="dot" style="background:#3a5f0b"></span>Friendly Bunkers</div>
+            <div><span class="dot" style="background:#4a4036"></span>Trench System</div>
+            <div><span class="dot" style="background:rgba(255,0,0,0.2); border:1px solid red"></span>Firing Zones</div>
+            <div><span class="dot" style="background:#555555"></span>Barbed Wire</div>
+            <div><span class="dot" style="background:#cc0000"></span>Enemy Troops</div>
+            <div><span class="dot" style="background:#222222; border: 1px solid red"></span>Minefield</div>
+            <div><span class="dot" style="background:#ffaa00"></span>UAV Drone</div>
+        </div>
+    </div>
+
+    <!-- HELP MODAL -->
+    <div id="help-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>TACTICAL GUIDE & BRIEFING</span>
+                <span class="close-help" onclick="toggleHelp()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="modal-section">
+                    <h4>Operational Context</h4>
+                    <p style="font-size:13px; line-height:1.5; color:#ccc;">
+                        This sand model simulates the defense of <strong>Point 4875</strong>, a critical peak in the Kargil sector. The objective is to hold the high ground against waves of enemy infantry ascending the slopes. The simulation demonstrates the effectiveness of integrated defenses (mines, wire, bunkers) and support assets (UAV, Artillery).
+                    </p>
+                </div>
+
+                <div class="modal-section">
+                    <h4>Instructor Controls (View Modes)</h4>
+                    <div class="guide-grid">
+                        <div class="key-item">
+                            <span class="key-name">SAND MODEL (ISO)</span>
+                            Standard isometric 3D view used for tactical planning and overview of the entire hill feature.
+                        </div>
+                        <div class="key-item">
+                            <span class="key-name">MAP VIEW (TOP)</span>
+                            Top-down satellite perspective. Best for assessing perimeter breaches and minefield integrity.
+                        </div>
+                        <div class="key-item">
+                            <span class="key-name">BUNKER VIEW</span>
+                            Low-angle perspective simulating the view from the command post. Good for visualizing line-of-sight.
+                        </div>
+                         <div class="key-item">
+                            <span class="key-name">NIGHT OP</span>
+                            Toggles environment between Day and Night. Night mode simulates low-light conditions where muzzle flashes and tracers are more visible.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-section">
+                    <h4>Support Assets</h4>
+                    <div class="guide-grid">
+                        <div class="key-item">
+                            <span class="key-name">ARTILLERY (BOFORS)</span>
+                            Calls in a barrage of high-explosive shells on the outer perimeter (100m-140m). Use when defensive lines are overwhelmed.
+                        </div>
+                        <div class="key-item">
+                            <span class="key-name">UAV (DRONE)</span>
+                            Autonomous aerial vehicle patrolling overhead. Automatically targets and engages high-priority threats with precision strikes.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-section">
+                    <h4>Defensive Grid</h4>
+                    <div style="font-size:13px; color:#ccc;">
+                        <ul style="margin-top:5px; padding-left:20px;">
+                            <li><strong>Bunkers (Alpha-Delta):</strong> Automated machine gun posts with overlapping fields of fire.</li>
+                            <li><strong>Mines:</strong> Pressure-activated explosives scattered on the slopes. Instantly neutralize infantry.</li>
+                            <li><strong>Wire:</strong> Barbed wire obstacles that slow down enemy movement speed by 80%.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script type="module">
@@ -57,13 +353,162 @@
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { ImprovedNoise } from 'three/addons/math/ImprovedNoise.js';
 
+        // --- GLOBAL STATE ---
+        const config = {
+            showArcs: false,
+            showWire: true,
+            showRings: true
+        };
+        let isPaused = false;
+        let isNight = false;
+
+        // --- UI TOGGLE LOGIC ---
+        window.togglePanel = function(contentId, btn) {
+            const content = document.getElementById(contentId);
+            const panel = content.parentElement;
+            
+            if (content.style.display === "none") {
+                // MAXIMIZE
+                if (contentId === 'log-feed' || contentId === 'controls-content') {
+                    content.style.display = 'flex';
+                } else {
+                    content.style.display = 'block';
+                }
+                
+                if(contentId === 'log-feed') panel.style.height = '400px';
+                btn.textContent = "[-]";
+            } else {
+                // MINIMIZE
+                content.style.display = "none";
+                if(contentId === 'log-feed') panel.style.height = 'auto';
+                btn.textContent = "[+]";
+            }
+        };
+
+        window.togglePause = function() {
+            isPaused = !isPaused;
+            const btn = document.getElementById('btn-pause');
+            if(isPaused) {
+                btn.textContent = "RESUME";
+                btn.style.background = "#d46a00";
+            } else {
+                btn.textContent = "PAUSE";
+                btn.style.background = "#004400";
+            }
+        };
+
+        window.toggleHelp = function() {
+            const modal = document.getElementById('help-modal');
+            if (modal.style.display === 'flex') {
+                modal.style.display = 'none';
+            } else {
+                modal.style.display = 'flex';
+            }
+        };
+
+        // --- DRAGGABLE UI LOGIC ---
+        function makeDraggable(elmnt) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            const handle = elmnt.querySelector('.drag-handle');
+            
+            if (handle) {
+                handle.onmousedown = dragMouseDown;
+            } else {
+                 elmnt.onmousedown = dragMouseDown;
+            }
+
+            function dragMouseDown(e) {
+                e = e || window.event;
+                if(e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.classList.contains('toggle-btn') || e.target.classList.contains('close-help')) return;
+                
+                e.preventDefault();
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+
+            function elementDrag(e) {
+                e = e || window.event;
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                
+                elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
+                elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+                elmnt.style.bottom = 'auto';
+                elmnt.style.right = 'auto';
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+        }
+
+        makeDraggable(document.getElementById("legend-panel"));
+        makeDraggable(document.getElementById("options-panel"));
+        makeDraggable(document.getElementById("tactical-log"));
+        makeDraggable(document.getElementById("controls-panel"));
+
+
+        // --- LOGGING SYSTEM ---
+        const logFeed = document.getElementById('log-feed');
+        function addLog(text, type) {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry ' + type;
+            
+            const now = new Date();
+            const timeStr = now.getHours().toString().padStart(2,'0') + ":" + 
+                            now.getMinutes().toString().padStart(2,'0') + ":" + 
+                            now.getSeconds().toString().padStart(2,'0');
+            
+            entry.textContent = `[${timeStr}] ${text}`;
+            logFeed.appendChild(entry);
+            
+            if(logFeed.children.length > 18) {
+                logFeed.removeChild(logFeed.firstChild);
+            }
+            logFeed.scrollTop = logFeed.scrollHeight;
+        }
+        
+        window.clearLog = function() {
+             logFeed.innerHTML = '<div class="log-entry msg-sys">System Reset.</div><div class="log-entry msg-sys">Awaiting Contact...</div>';
+        };
+
         // --- SCENE ---
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0xaaccff); 
         scene.fog = new THREE.FogExp2(0xaaccff, 0.002);
 
         const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 1, 1000);
-        camera.position.set(0, 80, 140);
+        
+        // Initial View (ISO)
+        const views = {
+            ISO: { pos: new THREE.Vector3(0, 90, 150), look: new THREE.Vector3(0, 0, 0) },
+            TOP: { pos: new THREE.Vector3(0, 220, 0), look: new THREE.Vector3(0, 0, 0) },
+            BUNKER: { pos: new THREE.Vector3(0, 15, 15), look: new THREE.Vector3(0, 10, 60) }, 
+            ENEMY: { pos: new THREE.Vector3(0, 10, 100), look: new THREE.Vector3(0, 20, 0) }
+        };
+
+        function setView(key) {
+            const v = views[key];
+            camera.position.copy(v.pos);
+            controls.target.copy(v.look);
+            
+            document.querySelectorAll('button').forEach(b => {
+                if(!b.classList.contains('action-btn') && !b.classList.contains('reset-btn') 
+                    && !b.classList.contains('artillery-btn') && !b.classList.contains('night-btn') && !b.classList.contains('help-btn'))
+                    b.classList.remove('active');
+            });
+            
+            if(key === 'ISO') document.getElementById('btn-iso').classList.add('active');
+            if(key === 'TOP') document.getElementById('btn-top').classList.add('active');
+            if(key === 'BUNKER') document.getElementById('btn-bunk').classList.add('active');
+        }
+        window.setCam = setView; 
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -74,6 +519,8 @@
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+        setView('ISO');
 
         // --- LIGHTS ---
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); 
@@ -86,36 +533,78 @@
         sunLight.shadow.mapSize.height = 2048;
         scene.add(sunLight);
 
-        // --- 1. TERRAIN (Mountain Peak) ---
+        // --- 1. TERRAIN (High Altitude / Rocky) ---
         const worldSize = 280;
         const geometry = new THREE.PlaneGeometry(worldSize, worldSize, 128, 128);
         geometry.rotateX(-Math.PI / 2);
         
         const perlin = new ImprovedNoise();
         const pos = geometry.attributes.position;
-        const PEAK_HEIGHT = 55;
+        const PEAK_HEIGHT = 65; 
 
         for (let i = 0; i < pos.count; i++) {
             const x = pos.getX(i);
             const z = pos.getZ(i);
             const dist = Math.sqrt(x*x + z*z);
-            let h = Math.max(0, PEAK_HEIGHT - dist * 0.6); 
-            if(dist > 10) h += perlin.noise(x*0.08, z*0.08, 0) * 4;
+            
+            // MOUNTAIN PEAK LOGIC
+            let h = Math.max(0, PEAK_HEIGHT - (dist * 0.45));
+
+            h += perlin.noise(x * 0.03, z * 0.03, 0) * 12;
+            h += perlin.noise(x * 0.1, z * 0.1, 0) * 2;
+
+            if(dist < 10) {
+                const blend = 1 - (dist / 10);
+                h = h * (1 - blend) + PEAK_HEIGHT * blend; 
+            }
+            
             pos.setY(i, Math.max(0, h));
         }
         geometry.computeVertexNormals();
         
-        const terrainMat = new THREE.MeshStandardMaterial({ color: 0x887766, roughness: 0.9, flatShading: true });
+        const terrainMat = new THREE.MeshStandardMaterial({ color: 0x8a7f70, roughness: 1.0, flatShading: true });
         const mountain = new THREE.Mesh(geometry, terrainMat);
         mountain.receiveShadow = true;
         scene.add(mountain);
 
-        // Grid
-        const grid = new THREE.GridHelper(300, 30, 0xffffff, 0xffffff);
-        grid.position.y = 0.5;
-        grid.material.opacity = 0.15;
-        grid.material.transparent = true;
-        scene.add(grid);
+        // --- 1.b FLAG ---
+        function createFlag() {
+            const poleGeo = new THREE.CylinderGeometry(0.2, 0.2, 12);
+            const poleMat = new THREE.MeshStandardMaterial({color: 0xcccccc});
+            const pole = new THREE.Mesh(poleGeo, poleMat);
+            pole.position.set(0, PEAK_HEIGHT + 6, 0);
+            scene.add(pole);
+
+            const flagGroup = new THREE.Group();
+            pole.add(flagGroup);
+            flagGroup.position.set(0, 4, 0);
+
+            const flagW = 4;
+            const flagH = 0.8; 
+            const saffron = new THREE.Mesh(new THREE.BoxGeometry(flagW, flagH, 0.1), new THREE.MeshBasicMaterial({color: 0xff9933}));
+            saffron.position.y = flagH;
+            
+            const white = new THREE.Mesh(new THREE.BoxGeometry(flagW, flagH, 0.1), new THREE.MeshBasicMaterial({color: 0xffffff}));
+            white.position.y = 0;
+            
+            const chakra = new THREE.Mesh(new THREE.CircleGeometry(0.3, 16), new THREE.MeshBasicMaterial({color: 0x000080}));
+            chakra.position.z = 0.06;
+            white.add(chakra);
+            const chakra2 = chakra.clone();
+            chakra2.rotation.y = Math.PI;
+            chakra2.position.z = -0.06;
+            white.add(chakra2);
+
+            const green = new THREE.Mesh(new THREE.BoxGeometry(flagW, flagH, 0.1), new THREE.MeshBasicMaterial({color: 0x138808}));
+            green.position.y = -flagH;
+
+            flagGroup.add(saffron);
+            flagGroup.add(white);
+            flagGroup.add(green);
+            
+            flagGroup.position.x = flagW/2 + 0.1;
+        }
+        createFlag();
 
         // --- UTILS ---
         const raycaster = new THREE.Raycaster();
@@ -126,19 +615,97 @@
             return hits.length > 0 ? hits[0].point.y : 0;
         }
 
-        // --- 2. DEFENSES (Bunkers & Ditches) ---
+        // --- Grid (Range Rings) ---
+        const ringsGroup = new THREE.Group();
+        [50, 100].forEach(r => {
+            const ringGeo = new THREE.RingGeometry(r, r + 0.5, 64);
+            ringGeo.rotateX(-Math.PI/2);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, opacity: 0.3, transparent: true, side: THREE.DoubleSide });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            
+            const y = getY(r, 0); 
+            ring.position.y = y + 1; 
+            
+            ringsGroup.add(ring);
+            
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            context.font = "Bold 40px Arial";
+            context.fillStyle = "white";
+            context.fillText(r + "m", 0, 40);
+            const texture = new THREE.CanvasTexture(canvas);
+            const spriteMat = new THREE.SpriteMaterial({ map: texture });
+            const sprite = new THREE.Sprite(spriteMat);
+            sprite.scale.set(8, 4, 1);
+            
+            sprite.position.set(r, y + 5, 0);
+            ringsGroup.add(sprite);
+        });
+        scene.add(ringsGroup);
+
+        // --- 2. DEFENSES ---
         const bunkerGroup = new THREE.Group();
+        const fireArcsGroup = new THREE.Group();
+        fireArcsGroup.visible = config.showArcs; 
         scene.add(bunkerGroup);
+        scene.add(fireArcsGroup);
+
         const bunkers = [];
         const bunkerGeo = new THREE.BoxGeometry(5, 3, 5);
-        const bunkerMat = new THREE.MeshStandardMaterial({ color: 0x444444 }); 
+        const bunkerMat = new THREE.MeshStandardMaterial({ color: 0x3a5f0b, roughness: 1 });
         
         const bunkerLocations = [
-            {x:0, z:-14, rot: 0},       
-            {x:0, z:14, rot: Math.PI},  
-            {x:-14, z:0, rot: -Math.PI/2}, 
-            {x:14, z:0, rot: Math.PI/2}    
+            {x:0, z:-18, rot: 0, id: "Alpha"},        
+            {x:0, z:18, rot: Math.PI, id: "Bravo"},   
+            {x:-18, z:0, rot: -Math.PI/2, id: "Charlie"}, 
+            {x:18, z:0, rot: Math.PI/2, id: "Delta"}    
         ];
+
+        // --- SMOOTH DITCH GENERATION (TUBE ALONG CURVE) ---
+        function createSmoothTrench(start, end, radius) {
+            const points = [];
+            const steps = 10; // Number of sample points for the curve
+            
+            for(let i=0; i <= steps; i++) {
+                const t = i / steps;
+                const x = start.x + (end.x - start.x) * t;
+                const z = start.z + (end.z - start.z) * t;
+                const y = getY(x, z);
+                
+                // Adjust Y to sit "in" the ground. 
+                // Since Tube is round, we sink it so the top half sticks out slightly as a mound/cover
+                points.push(new THREE.Vector3(x, y - 0.8, z));
+            }
+            
+            const curve = new THREE.CatmullRomCurve3(points);
+            // 8 radial segments gives a slightly blocky "constructed" look but smooth along length
+            // 64 tubular segments for smoothness
+            const geo = new THREE.TubeGeometry(curve, 64, radius, 8, false);
+            const mat = new THREE.MeshStandardMaterial({ color: 0x4a4036, roughness: 1 });
+            const tube = new THREE.Mesh(geo, mat);
+            return tube;
+        }
+        
+        // --- SMOOTH CENTRAL TRENCH RING ---
+        function createCentralTrenchRing(centerRadius) {
+            const points = [];
+            const segs = 16;
+            for(let i=0; i < segs; i++) {
+                const angle = (i / segs) * Math.PI * 2;
+                const x = Math.cos(angle) * centerRadius;
+                const z = Math.sin(angle) * centerRadius;
+                const y = getY(x, z);
+                points.push(new THREE.Vector3(x, y - 0.8, z));
+            }
+            // Close loop
+            const curve = new THREE.CatmullRomCurve3(points);
+            curve.closed = true;
+            
+            const geo = new THREE.TubeGeometry(curve, 128, 1.2, 8, true); // 1.2 radius = 2.4m width approx
+            const mat = new THREE.MeshStandardMaterial({ color: 0x4a4036, roughness: 1 });
+            const mesh = new THREE.Mesh(geo, mat);
+            return mesh;
+        }
 
         bunkerLocations.forEach(loc => {
             const y = getY(loc.x, loc.z);
@@ -147,37 +714,67 @@
             b.rotation.y = loc.rot;
             b.castShadow = true;
             
-            const portGeo = new THREE.BoxGeometry(1.5, 0.6, 1);
+            // Firing Port
+            const portGeo = new THREE.BoxGeometry(2.5, 0.6, 0.2); 
             const portMat = new THREE.MeshBasicMaterial({color: 0x000000});
             const port = new THREE.Mesh(portGeo, portMat);
-            port.position.set(0, 0.5, -2.1); 
+            port.position.set(0, 0.5, -2.55); 
             b.add(port);
             
-            bunkers.push({ mesh: b, port: port });
+            bunkers.push({ mesh: b, port: port, id: loc.id });
             bunkerGroup.add(b);
 
-            const ditchGeo = new THREE.BoxGeometry(2, 1, 10);
-            const ditchMat = new THREE.MeshStandardMaterial({ color: 0x332211 });
-            const ditch = new THREE.Mesh(ditchGeo, ditchMat);
-            const midX = loc.x * 0.55;
-            const midZ = loc.z * 0.55;
-            const midY = getY(midX, midZ);
-            ditch.position.set(midX, midY, midZ);
-            ditch.lookAt(0, midY, 0);
-            scene.add(ditch);
+            // --- SMOOTH CONNECTION ---
+            const dir = new THREE.Vector3(loc.x, 0, loc.z).normalize();
+            const startPos = dir.clone().multiplyScalar(8); // Start at ring
+            const endPos = dir.clone().multiplyScalar(15.5); // End at bunker
+            
+            const trench = createSmoothTrench(startPos, endPos, 1.2);
+            scene.add(trench);
+
+            const arcGeo = new THREE.RingGeometry(0, 80, 32, 1, -Math.PI/4 - Math.PI/2, Math.PI/2); 
+            arcGeo.rotateX(-Math.PI/2);
+            const arcMat = new THREE.MeshBasicMaterial({ color: 0xff3300, transparent: true, opacity: 0.1, side: THREE.DoubleSide });
+            const arc = new THREE.Mesh(arcGeo, arcMat);
+            
+            arc.position.copy(b.position);
+            arc.position.y -= 0.5; 
+            arc.rotation.y = loc.rot;
+            fireArcsGroup.add(arc);
         });
 
-        const trenchGeo = new THREE.TorusGeometry(8, 0.8, 8, 32);
-        const trenchMat = new THREE.MeshStandardMaterial({ color: 0x332211 });
-        const trench = new THREE.Mesh(trenchGeo, trenchMat);
-        trench.rotation.x = Math.PI/2;
-        trench.position.y = getY(8, 0); 
-        scene.add(trench);
+        // Add Central Ring
+        const centralRing = createCentralTrenchRing(8);
+        scene.add(centralRing);
+
+
+        // --- 2b. WIRE OBSTACLES ---
+        const wireGroup = new THREE.Group();
+        const wireRadius = 32; 
+        const wireCount = 30;
+        for(let i=0; i<wireCount; i++) {
+            const angle = (i / wireCount) * Math.PI * 2;
+            const x = Math.cos(angle) * wireRadius;
+            const z = Math.sin(angle) * wireRadius;
+            const y = getY(x, z);
+            
+            const coilGeo = new THREE.TorusGeometry(1.5, 0.1, 8, 20);
+            const coilMat = new THREE.MeshStandardMaterial({ color: 0x666666 });
+            const coil = new THREE.Mesh(coilGeo, coilMat);
+            coil.position.set(x, y + 0.5, z);
+            coil.lookAt(0, y+0.5, 0);
+            coil.rotateY(Math.PI/2); 
+            wireGroup.add(coil);
+        }
+        scene.add(wireGroup);
+
 
         // --- 3. MINES ---
         const mines = [];
-        const mineCaseMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
-        const mineLightMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const mineGroup = new THREE.Group(); 
+        scene.add(mineGroup);
+        const mineCaseMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
+        const mineLightMat = new THREE.MeshBasicMaterial({ color: 0xaa0000 });
 
         function createRealMine() {
             const group = new THREE.Group();
@@ -189,46 +786,61 @@
             return group;
         }
 
-        for(let i=0; i<45; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const r = 28 + Math.random() * 15; 
-            const x = Math.cos(angle) * r;
-            const z = Math.sin(angle) * r;
-            const y = getY(x, z);
-            
-            const m = createRealMine();
-            m.position.set(x, y + 0.1, z);
-            m.rotation.z = (Math.random() - 0.5) * 0.2;
-            m.rotation.x = (Math.random() - 0.5) * 0.2;
-            scene.add(m);
-            mines.push({ mesh: m, active: true });
+        function spawnMines() {
+            // clear old mines
+            mines.forEach(m => mineGroup.remove(m.mesh));
+            mines.length = 0;
+
+            for(let i=0; i<45; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const r = 42 + Math.random() * 12; 
+                const x = Math.cos(angle) * r;
+                const z = Math.sin(angle) * r;
+                const y = getY(x, z);
+                
+                const m = createRealMine();
+                m.position.set(x, y + 0.1, z);
+                m.rotation.z = (Math.random() - 0.5) * 0.2;
+                m.rotation.x = (Math.random() - 0.5) * 0.2;
+                mineGroup.add(m);
+                mines.push({ mesh: m, active: true, id: `M-${i}` });
+            }
         }
+        spawnMines();
 
         // --- 4. ENEMIES ---
         const enemies = [];
-        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xcc0000 });
+        let enemyCounter = 0;
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x882222 }); 
         const skinMat = new THREE.MeshStandardMaterial({ color: 0xffccaa });
-        const gearMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+        const gearMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
 
         function createSoldierMesh() {
             const soldier = new THREE.Group();
+            const pivot = new THREE.Group();
+            
             const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 1.8, 8), bodyMat);
             torso.position.y = 0.9;
             torso.castShadow = true;
-            soldier.add(torso);
+            pivot.add(torso);
             const head = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 8), skinMat);
             head.position.y = 2.1;
-            soldier.add(head);
+            pivot.add(head);
             const gun = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.3, 1.5), gearMat);
             gun.position.set(0.4, 1.1, 0.6); 
-            soldier.add(gun);
+            pivot.add(gun);
+            
+            soldier.add(pivot);
+            soldier.userData = { pivot: pivot }; 
             return soldier;
         }
 
         function spawnEnemy() {
-            if(enemies.length > 60) return; 
+            if(isPaused) return; 
+            if(enemies.length > 50) return; 
+            enemyCounter++;
             const angle = Math.random() * Math.PI * 2;
-            const dist = 120; 
+            const dist = 135; 
             const x = Math.cos(angle) * dist;
             const z = Math.sin(angle) * dist;
             
@@ -236,27 +848,48 @@
             soldier.position.set(x, 0, z);
             
             scene.add(soldier);
-            enemies.push({ mesh: soldier, active: true, offset: Math.random() * 100 });
+            enemies.push({ 
+                mesh: soldier, 
+                active: true, 
+                offset: Math.random() * 100,
+                state: 'move',
+                timer: Math.random() * 2,
+                id: `Enemy-${enemyCounter}`
+            });
         }
+        
+        window.resetSimulation = function() {
+            enemies.forEach(e => scene.remove(e.mesh));
+            enemies.length = 0;
+            enemyCounter = 0;
+            
+            fxList.forEach(f => scene.remove(f.mesh));
+            fxList.length = 0;
+            explosions.forEach(x => scene.remove(x.mesh));
+            explosions.length = 0;
+            
+            spawnMines();
+            clearLog();
+        };
 
-        // --- 5. DRONE ---
+        // --- 5. UAV ---
         const droneGroup = new THREE.Group();
         const rotors = []; 
 
         function buildDrone() {
-            const yellowMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, roughness: 0.5, metalness: 0.4 });
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffff00, roughness: 0.5 });
             const darkMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-            const body = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.5, 3), yellowMat);
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.5, 3), bodyMat);
             droneGroup.add(body);
 
             const armGeo = new THREE.CylinderGeometry(0.1, 0.1, 4.5);
             armGeo.rotateZ(Math.PI/2);
-            const arm1 = new THREE.Mesh(armGeo, yellowMat); arm1.rotation.y = Math.PI/4;
-            const arm2 = new THREE.Mesh(armGeo, yellowMat); arm2.rotation.y = -Math.PI/4;
+            const arm1 = new THREE.Mesh(armGeo, bodyMat); arm1.rotation.y = Math.PI/4;
+            const arm2 = new THREE.Mesh(armGeo, bodyMat); arm2.rotation.y = -Math.PI/4;
             body.add(arm1); body.add(arm2);
 
             const rotorGeo = new THREE.BoxGeometry(2.5, 0.05, 0.2);
-            const rotorMat = new THREE.MeshBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.8 });
+            const rotorMat = new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.8 });
             
             [{x: 1.5, z: 1.5}, {x: -1.5, z: 1.5}, {x: 1.5, z: -1.5}, {x: -1.5, z: -1.5}].forEach(pos => {
                 const motor = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.3), darkMat);
@@ -287,13 +920,27 @@
         }
 
         function fire(start, end, color, isBunker) {
-            const points = [start, end];
-            const geometry = new THREE.BufferGeometry().setFromPoints(points);
-            const material = new THREE.LineBasicMaterial({ color: color, linewidth: 2 });
-            const line = new THREE.Line(geometry, material);
-            scene.add(line);
+            const distance = start.distanceTo(end);
+            const midPoint = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+
+            // Brighter tracers at night
+            const useColor = isNight ? 0xffffff : color;
+            const thickness = isBunker ? 0.2 : 0.6; 
+            const geometry = new THREE.CylinderGeometry(thickness, thickness, distance, 6);
+            geometry.rotateX(-Math.PI / 2); 
             
-            fxList.push({ mesh: line, life: 6, type: 'line' }); 
+            const material = new THREE.MeshBasicMaterial({ 
+                color: useColor,
+                transparent: true,
+                opacity: isNight ? 1.0 : 0.8 // More visible at night
+            });
+            
+            const beam = new THREE.Mesh(geometry, material);
+            beam.position.copy(midPoint);
+            beam.lookAt(end);
+            
+            scene.add(beam);
+            fxList.push({ mesh: beam, life: 8, type: 'beam' }); 
             
             if(isBunker) {
                 const dir = new THREE.Vector3().subVectors(end, start);
@@ -301,17 +948,16 @@
             }
         }
 
-        function createExplosion(pos) {
-            // REDUCED BLAST RADIUS HERE
-            const geo = new THREE.SphereGeometry(1.2, 8, 8); // Reduced from 2.5
+        function createExplosion(pos, scaleMod = 1.0) {
+            const geo = new THREE.SphereGeometry(1.0 * scaleMod, 6, 6); 
             const mat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
             const boom = new THREE.Mesh(geo, mat);
             boom.position.copy(pos);
             scene.add(boom);
             explosions.push({ mesh: boom, age: 0, type: 'fire' });
 
-            const smokeGeo = new THREE.TorusGeometry(0.8, 0.4, 6, 12); // Reduced from 1.5
-            const smokeMat = new THREE.MeshBasicMaterial({ color: 0x555555, transparent: true, opacity: 0.8 });
+            const smokeGeo = new THREE.TorusGeometry(0.5 * scaleMod, 0.3 * scaleMod, 5, 8); 
+            const smokeMat = new THREE.MeshBasicMaterial({ color: 0x555555, transparent: true, opacity: 0.6 }); 
             const smoke = new THREE.Mesh(smokeGeo, smokeMat);
             smoke.position.copy(pos);
             smoke.rotation.x = Math.PI/2;
@@ -319,16 +965,111 @@
             explosions.push({ mesh: smoke, age: 0, type: 'smoke' });
         }
 
+        // --- ARTILLERY LOGIC ---
+        window.callArtillery = function() {
+            addLog("!! BOFORS STRIKE INBOUND !!", "msg-artillery");
+            
+            // Strike 12 times randomly
+            for(let i=0; i<12; i++) {
+                setTimeout(() => {
+                    const angle = Math.random() * Math.PI * 2;
+                    const r = 100 + Math.random() * 40; // Hit outer perimeter
+                    const x = Math.cos(angle) * r;
+                    const z = Math.sin(angle) * r;
+                    const y = getY(x, z);
+                    const pos = new THREE.Vector3(x, y + 1, z);
+                    
+                    createExplosion(pos, 3.0); // Big explosion
+                    
+                    // Kill nearby enemies
+                    enemies.forEach(e => {
+                        if(e.active && e.mesh.position.distanceTo(pos) < 20) {
+                            e.active = false;
+                            addLog(`Enemy KIA by Artillery`, "msg-kill");
+                        }
+                    });
+
+                }, i * 200); // Stagger explosions
+            }
+        };
+
+        // --- NIGHT MODE LOGIC ---
+        window.toggleNight = function() {
+            isNight = !isNight;
+            const btn = document.getElementById('btn-night');
+            
+            if(isNight) {
+                btn.textContent = "DAY OP";
+                btn.style.background = "#ccccff";
+                btn.style.color = "#000";
+                
+                scene.background = new THREE.Color(0x050510);
+                scene.fog.color = new THREE.Color(0x050510);
+                scene.fog.density = 0.005;
+                
+                // Increased night visibility (was 0.1 / 0.2)
+                ambientLight.intensity = 0.35; 
+                sunLight.intensity = 0.4;
+                sunLight.color.setHex(0x6666ff); // Brighter blue moonlight
+                
+                document.body.style.backgroundColor = "#050510";
+                addLog("Night Vision Active.", "msg-sys");
+            } else {
+                btn.textContent = "NIGHT OP";
+                btn.style.background = "#000044";
+                btn.style.color = "#aaaaff";
+                
+                scene.background = new THREE.Color(0xaaccff);
+                scene.fog.color = new THREE.Color(0xaaccff);
+                scene.fog.density = 0.002;
+                
+                ambientLight.intensity = 0.6;
+                sunLight.intensity = 1.2;
+                sunLight.color.setHex(0xffffee);
+                
+                document.body.style.backgroundColor = "#aaccff";
+                addLog("Standard Vision Active.", "msg-sys");
+            }
+        };
+
+        window.toggleHelp = function() {
+            const modal = document.getElementById('help-modal');
+            if (modal.style.display === 'flex') {
+                modal.style.display = 'none';
+            } else {
+                modal.style.display = 'flex';
+            }
+        };
+
+        // --- EVENT LISTENERS ---
+        document.getElementById('toggle-arcs').addEventListener('change', (e) => {
+            fireArcsGroup.visible = e.target.checked;
+        });
+        document.getElementById('toggle-wire').addEventListener('change', (e) => {
+            wireGroup.visible = e.target.checked;
+        });
+        document.getElementById('toggle-rings').addEventListener('change', (e) => {
+            ringsGroup.visible = e.target.checked;
+        });
+
+
         // --- LOOP ---
         const clock = new THREE.Clock();
         function animate() {
             requestAnimationFrame(animate);
+            const delta = clock.getDelta();
             const time = clock.getElapsedTime();
 
-            // 1. Drone Logic 
+            // Always animate Drone rotors & position (even if paused, looks better if hovering)
             droneGroup.position.set(Math.cos(time*0.4)*60, 70, Math.sin(time*0.4)*60);
             droneGroup.lookAt(0, 40, 0);
             rotors.forEach((r, i) => { r.rotation.y += 0.8 * (i%2==0 ? 1 : -1); });
+
+            // If Paused, skip game logic updates
+            if(isPaused) {
+                renderer.render(scene, camera);
+                return; 
+            }
 
             // 2. Spawn Enemies
             if (Math.random() < 0.15) spawnEnemy();
@@ -336,63 +1077,103 @@
             // 3. Enemy Logic
             enemies.forEach(e => {
                 if (!e.active) return;
-                
-                const dir = new THREE.Vector3(0, 0, 0).sub(e.mesh.position).normalize();
-                dir.y = 0; 
-                e.mesh.position.add(dir.multiplyScalar(0.2)); 
-                
-                const bob = Math.sin((time * 10) + e.offset) * 0.2;
-                const y = getY(e.mesh.position.x, e.mesh.position.z);
-                e.mesh.position.y = y + 0.1 + Math.max(0, bob); 
-                e.mesh.lookAt(0, y + 10, 0);
-
-                // Mine Collision
-                mines.forEach(mine => {
-                    if(!mine.active) return;
-                    // REDUCED TRIGGER RADIUS (from 3.5 to 2.5)
-                    if(e.mesh.position.distanceTo(mine.mesh.position) < 2.5) { 
-                        createExplosion(mine.mesh.position);
-                        mine.active = false;
-                        scene.remove(mine.mesh);
-                        e.active = false;
+                e.timer -= delta;
+                if (e.timer <= 0) {
+                    if (e.state === 'move') {
+                        e.state = 'fire';
+                        e.timer = 1.0 + Math.random(); 
+                        e.mesh.userData.pivot.rotation.x = -Math.PI / 2.5;
+                        e.mesh.userData.pivot.position.y = 0.5; 
+                    } else {
+                        e.state = 'move';
+                        e.timer = 2.0 + Math.random() * 2; 
+                        e.mesh.userData.pivot.rotation.x = 0;
+                        e.mesh.userData.pivot.position.y = 0;
                     }
-                });
-
+                }
+                if (e.state === 'move') {
+                    const dir = new THREE.Vector3(0, 0, 0).sub(e.mesh.position).normalize();
+                    dir.y = 0; 
+                    const distToCenter = e.mesh.position.length();
+                    let speed = 2.5; 
+                    if (config.showWire && Math.abs(distToCenter - wireRadius) < 3) {
+                        speed = 0.5; 
+                    }
+                    e.mesh.position.add(dir.multiplyScalar(speed * delta)); 
+                    const bob = Math.sin((time * 15) + e.offset) * 0.2;
+                    const y = getY(e.mesh.position.x, e.mesh.position.z);
+                    e.mesh.position.y = y + 0.1 + Math.max(0, bob); 
+                    e.mesh.lookAt(0, y + 10, 0);
+                } else {
+                    if (Math.random() < 0.005) {
+                         const bunkerObj = bunkers[Math.floor(Math.random() * bunkers.length)];
+                         fire(e.mesh.position.clone().add(new THREE.Vector3(0,0.5,0)), bunkerObj.mesh.position, 0xff0000, false);
+                         if(Math.random() < 0.5) {
+                             const enemyNum = e.id.split('-')[1];
+                             addLog(`Enemy #${enemyNum} attacking Bunker ${bunkerObj.id}`, "msg-alert");
+                         }
+                    }
+                }
+                if (e.state === 'move') {
+                    mines.forEach(mine => {
+                        if(!mine.active) return;
+                        if(e.mesh.position.distanceTo(mine.mesh.position) < 2.5) { 
+                            createExplosion(mine.mesh.position);
+                            mine.active = false;
+                            mineGroup.remove(mine.mesh); 
+                            e.active = false;
+                            const enemyNum = e.id.split('-')[1];
+                            addLog(`Enemy #${enemyNum} hit Landmine`, "msg-mine");
+                        }
+                    });
+                }
                 if (e.mesh.position.distanceTo(new THREE.Vector3(0, PEAK_HEIGHT, 0)) < 15) {
                     e.active = false; 
+                    const enemyNum = e.id.split('-')[1];
+                    addLog(`ALERT: Enemy #${enemyNum} breached perimeter!`, "msg-mine");
                 }
             });
 
             // 4. Combat Logic
             if (enemies.length > 0) {
-                if (Math.random() < 0.25) {
-                    const target = enemies.filter(en => en.active)[0];
-                    if (target) {
-                        const bunkerObj = bunkers[Math.floor(Math.random() * bunkers.length)];
-                        const startPos = new THREE.Vector3();
-                        bunkerObj.port.getWorldPosition(startPos);
-                        
-                        const targetPos = target.mesh.position.clone().add(new THREE.Vector3(0, 1.5, 0));
-                        fire(startPos, targetPos, 0x00aaff, true); 
-                        
-                        if(Math.random() > 0.6) target.active = false; 
+                bunkers.forEach(bunker => {
+                    let closestEnemy = null;
+                    let minDst = 120; 
+                    enemies.forEach(en => {
+                        if (!en.active) return;
+                        const dst = bunker.mesh.position.distanceTo(en.mesh.position);
+                        if (dst < minDst) {
+                            minDst = dst;
+                            closestEnemy = en;
+                        }
+                    });
+                    if (closestEnemy) {
+                        const fireProbability = minDst < 40 ? 0.15 : 0.02;
+                        if (Math.random() < fireProbability) {
+                            const startPos = new THREE.Vector3();
+                            bunker.port.getWorldPosition(startPos);
+                            const targetPos = closestEnemy.mesh.position.clone().add(new THREE.Vector3(0, 1.5, 0));
+                            fire(startPos, targetPos, 0x00aaff, true);
+                            const enemyNum = closestEnemy.id.split('-')[1];
+                            if(Math.random() < 0.1) addLog(`Bunker ${bunker.id} firing on Enemy #${enemyNum}`, "msg-eng");
+                            const hitChance = 0.3 + ((100 - minDst) * 0.015);
+                            if (Math.random() < hitChance) {
+                                closestEnemy.active = false;
+                                addLog(`Enemy #${enemyNum} neutralized by Bunker ${bunker.id}`, "msg-kill");
+                            }
+                        }
                     }
-                }
-                if (Math.random() < 0.15) {
+                });
+                if (Math.random() < 0.02) { 
                     const activeEnemies = enemies.filter(en => en.active);
-                    const shooter = activeEnemies[Math.floor(Math.random() * activeEnemies.length)];
-                    if (shooter) {
-                        const bunkerObj = bunkers[Math.floor(Math.random() * bunkers.length)];
-                        const startPos = shooter.mesh.position.clone().add(new THREE.Vector3(0, 1.2, 0));
-                        fire(startPos, bunkerObj.mesh.position, 0xff0000, false); 
-                    }
-                }
-                if (Math.random() < 0.1) {
-                    const target = enemies.filter(en => en.active)[Math.floor(Math.random() * enemies.length)];
-                    if(target) {
-                         const targetPos = target.mesh.position.clone().add(new THREE.Vector3(0, 1.5, 0));
-                         fire(droneGroup.position, targetPos, 0xffaa00, false);
-                         if(Math.random() > 0.8) target.active = false;
+                    if (activeEnemies.length > 0) {
+                           const target = activeEnemies[Math.floor(Math.random() * activeEnemies.length)];
+                           const targetPos = target.mesh.position.clone().add(new THREE.Vector3(0, 1.5, 0));
+                           fire(droneGroup.position, targetPos, 0xffaa00, false); 
+                           createExplosion(targetPos); 
+                           target.active = false;
+                           const enemyNum = target.id.split('-')[1];
+                           addLog(`Enemy #${enemyNum} destroyed by UAV Precision Strike`, "msg-kill");
                     }
                 }
             }
@@ -401,8 +1182,15 @@
             for (let i = explosions.length - 1; i >= 0; i--) {
                 const ex = explosions[i];
                 ex.age++;
-                if(ex.type === 'fire') { ex.mesh.scale.multiplyScalar(1.08); ex.mesh.material.opacity -= 0.05; }
-                else if (ex.type === 'smoke') { ex.mesh.scale.multiplyScalar(1.05); ex.mesh.position.y += 0.2; ex.mesh.material.opacity -= 0.02; }
+                if(ex.type === 'fire') { 
+                    ex.mesh.scale.multiplyScalar(1.05); 
+                    ex.mesh.material.opacity -= 0.1; 
+                }
+                else if (ex.type === 'smoke') { 
+                    ex.mesh.scale.multiplyScalar(1.03); 
+                    ex.mesh.position.y += 0.1; 
+                    ex.mesh.material.opacity -= 0.04; 
+                }
                 if (ex.mesh.material.opacity <= 0) { scene.remove(ex.mesh); explosions.splice(i, 1); }
             }
 
@@ -421,7 +1209,11 @@
             for (let i = fxList.length - 1; i >= 0; i--) {
                 const fx = fxList[i];
                 fx.life--;
-                if(fx.type !== 'line') { 
+                if(fx.type === 'beam') {
+                    fx.mesh.material.opacity -= 0.1;
+                    fx.mesh.scale.x *= 0.9; 
+                    fx.mesh.scale.y *= 0.9;
+                } else { 
                      fx.mesh.scale.multiplyScalar(1.1);
                      fx.mesh.material.opacity -= 0.05;
                 }
